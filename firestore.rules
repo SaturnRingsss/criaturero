@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esDueno(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if esDueno(uid);
+      allow create, update: if esDueno(uid)
+        && request.resource.data.keys().hasOnly(['energia', 'clicks', 'updatedAt'])
+        && request.resource.data.energia is int
+        && request.resource.data.energia >= 0
+        && request.resource.data.clicks is int
+        && request.resource.data.clicks >= 0;
+      allow delete: if false;
+
+      match /criaturas/{id} {
+        allow read: if esDueno(uid);
+        allow create: if esDueno(uid)
+          && request.resource.data.keys().hasOnly(['nombre', 'elemento', 'nivel', 'creadaEn'])
+          && request.resource.data.nombre is string
+          && request.resource.data.nombre.size() >= 1
+          && request.resource.data.nombre.size() <= 14
+          && request.resource.data.elemento in ['hielo', 'tierra', 'viento', 'agua', 'rayo', 'fuego']
+          && request.resource.data.nivel == 1
+          && request.resource.data.creadaEn is int;
+        allow update: if esDueno(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nivel'])
+          && request.resource.data.nivel is int
+          && request.resource.data.nivel > resource.data.nivel
+          && request.resource.data.nivel <= 10;
+        allow delete: if esDueno(uid);
+      }
+    }
+  }
+}
